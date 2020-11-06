@@ -9,6 +9,7 @@
       "esnext.asynciterable"
     ],
     "sourceMap": true,
+    "skipLibCheck": true,
     "outDir": "./dist",
     "moduleResolution": "node",
     "removeComments": true,
@@ -26,8 +27,7 @@
     "experimentalDecorators": true,
     "allowJs": true,
     "resolveJsonModule": true,
-    "baseUrl": ".",
-    "skipLibCheck": true
+    "baseUrl": "."
   },
   "exclude": [
     "node_modules"
