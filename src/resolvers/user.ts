@@ -39,7 +39,7 @@ export class UserResolver {
   @Mutation(() => UserResponse)
   async changePassword(
     @Arg("token") token: string,
-    @Arg("newpassword") newPassword: string,
+    @Arg("newPassword") newPassword: string,
     @Ctx() { em, redis, req }: MyContext
   ): Promise<UserResponse> {
     if (newPassword.length <= 3) {
@@ -53,7 +53,8 @@ export class UserResolver {
       };
     }
 
-    const userId = await redis.get(FORGET_PASSWORD_PREFIX + token);
+    const key = FORGET_PASSWORD_PREFIX + token;
+    const userId = await redis.get(key);
     if (!userId) {
       return {
         errors: [
@@ -81,6 +82,8 @@ export class UserResolver {
     await em.persistAndFlush(user);
 
     req.session!.userId = user.id;
+
+    await redis.del(key);
 
     return { user };
   }
