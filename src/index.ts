@@ -14,6 +14,7 @@ import cors from "cors";
 import { createConnection } from "typeorm";
 import { Post } from "./entities/Post";
 import { User } from "./entities/User";
+import { Vote } from "./entities/Vote";
 import path from "path";
 
 const main = async () => {
@@ -26,7 +27,7 @@ const main = async () => {
     logging: !__prod__,
     synchronize: true,
     migrations: [path.join(__dirname, "./migrations/*")],
-    entities: [Post, User],
+    entities: [Post, User, Vote],
   });
   conn.runMigrations();
 
