@@ -1,4 +1,3 @@
-import { isAuth } from "../middleware/isAuth";
 import { MyContext } from "src/types";
 import {
   Arg,
@@ -14,8 +13,9 @@ import {
   Root,
   UseMiddleware,
 } from "type-graphql";
-import { Post } from "../entities/Post";
 import { getConnection } from "typeorm";
+import { Post } from "../entities/Post";
+import { isAuth } from "../middleware/isAuth";
 
 @InputType()
 class PostInput {
@@ -62,7 +62,7 @@ export class PostResolver {
       ) "creator"
       from "post" p 
       inner join "user" u on u.id = p."creatorId"
-      ${cursor && `where p."createdAt" < $2`}
+      ${cursor ? `where p."createdAt" < $2` : ""}
       order by p."createdAt" DESC LIMIT $1`,
       replacements
     );
@@ -105,6 +105,26 @@ export class PostResolver {
   @Mutation(() => Boolean)
   async deletePost(@Arg("id") id: number): Promise<boolean> {
     await Post.delete(id);
+    return true;
+  }
+
+  @Mutation(() => Boolean)
+  @UseMiddleware(isAuth)
+  async vote(
+    @Arg("postId", () => Int) postId: number,
+    @Arg("value", () => Int) value: number,
+    @Ctx() { req }: MyContext
+  ) {
+    const realValue = value > 0 ? 1 : -1;
+    const userId = req.session!.userId;
+    getConnection().query(
+      `START TRANSACTION;
+      INSERT INTO vote ("userId","postId",value) VALUES (${userId}, ${postId}, ${realValue});
+      UPDATE "post" p
+      SET points = points + ${realValue}
+      WHERE p.id = ${postId};
+      COMMIT;`
+    );
     return true;
   }
 }
