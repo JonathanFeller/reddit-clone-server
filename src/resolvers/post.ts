@@ -48,31 +48,25 @@ export class PostResolver {
     const realLimit = Math.min(50, limit);
     const realLimitPlusOne = realLimit + 1;
 
-    // let replacements: any[] = [realLimit];
-    // if (cursor) {
-    //   replacements.push(new Date(parseInt(cursor)));
-    // }
-
-    // const qb = getConnection().query(
-    //   `select p.* from post p ${
-    //     cursor && `WHERE p."createdAt" < $2`
-    //   } order by p."createdAt" DESC LIMIT $1`,
-    //   replacements
-    // );
-
-    const qb = getConnection()
-      .getRepository(Post)
-      .createQueryBuilder("p")
-      .orderBy('"createdAt"', "DESC")
-      .take(realLimitPlusOne);
-
+    let replacements: any[] = [realLimitPlusOne];
     if (cursor) {
-      qb.where('"createdAt" < :cursor', {
-        cursor: new Date(parseInt(cursor)),
-      });
+      replacements.push(new Date(parseInt(cursor)));
     }
 
-    const posts = await qb.getMany();
+    const posts = await getConnection().query(
+      `select p.*, json_build_object(
+        'id', u.id, 
+        'username', u.username, 
+        'email', u.email, 
+        'createdAt', u."createdAt"
+      ) "creator"
+      from "post" p 
+      inner join "user" u on u.id = p."creatorId"
+      ${cursor && `where p."createdAt" < $2`}
+      order by p."createdAt" DESC LIMIT $1`,
+      replacements
+    );
+
     return {
       posts: posts.slice(0, realLimit),
       hasMore: posts.length === realLimitPlusOne,
