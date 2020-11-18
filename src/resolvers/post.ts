@@ -15,6 +15,7 @@ import {
 } from "type-graphql";
 import { getConnection } from "typeorm";
 import { Post } from "../entities/Post";
+import { Vote } from "../entities/Vote";
 import { isAuth } from "../middleware/isAuth";
 
 @InputType()
@@ -117,14 +118,32 @@ export class PostResolver {
   ) {
     const realValue = value > 0 ? 1 : -1;
     const userId = req.session!.userId;
-    getConnection().query(
-      `START TRANSACTION;
-      INSERT INTO vote ("userId","postId",value) VALUES (${userId}, ${postId}, ${realValue});
-      UPDATE "post" p
-      SET points = points + ${realValue}
-      WHERE p.id = ${postId};
-      COMMIT;`
-    );
+
+    const vote = await Vote.findOne({ where: { postId, userId } });
+    if (vote && vote.value !== realValue) {
+      await getConnection().transaction(async (tm) => {
+        await tm.query(
+          `UPDATE vote SET value=$1 WHERE "userId"=$2 AND "postId"=$3`,
+          [realValue, userId, postId]
+        );
+        await tm.query(
+          `UPDATE "post" p SET points = points + $1 WHERE p.id = $2`,
+          [2 * realValue, postId]
+        );
+      });
+    } else if (!vote) {
+      await getConnection().transaction(async (tm) => {
+        await tm.query(
+          `INSERT INTO vote ("userId","postId",value) VALUES ($1,$2,$3)`,
+          [userId, postId, realValue]
+        );
+        await tm.query(
+          `UPDATE "post" p SET points = points + $1 WHERE p.id = $2`,
+          [realValue, postId]
+        );
+      });
+    }
+
     return true;
   }
 }
