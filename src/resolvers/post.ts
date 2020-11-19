@@ -43,6 +43,7 @@ export class PostResolver {
 
   @Query(() => PaginatedPosts)
   async posts(
+    @Ctx() { req }: MyContext,
     @Arg("limit", () => Int) limit: number,
     @Arg("cursor", () => String, { nullable: true }) cursor: string | null
   ): Promise<PaginatedPosts> {
@@ -50,8 +51,15 @@ export class PostResolver {
     const realLimitPlusOne = realLimit + 1;
 
     let replacements: any[] = [realLimitPlusOne];
+
+    if (req.session!.userId) {
+      replacements.push(req.session!.userId);
+    }
+
+    let cursorIdx = 3;
     if (cursor) {
       replacements.push(new Date(parseInt(cursor)));
+      cursorIdx = replacements.length;
     }
 
     const posts = await getConnection().query(
@@ -60,10 +68,15 @@ export class PostResolver {
         'username', u.username, 
         'email', u.email, 
         'createdAt', u."createdAt"
-      ) "creator"
+      ) "creator",
+      ${
+        req.session!.userId
+          ? '(select value from "vote" where "userId"=$2 and "postId"=p.id) "voteStatus"'
+          : 'null as "voteStatus"'
+      }
       from "post" p 
       inner join "user" u on u.id = p."creatorId"
-      ${cursor ? `where p."createdAt" < $2` : ""}
+      ${cursor ? `where p."createdAt" < $${cursorIdx}` : ""}
       order by p."createdAt" DESC LIMIT $1`,
       replacements
     );
