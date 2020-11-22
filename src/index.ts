@@ -1,4 +1,5 @@
 import "reflect-metadata";
+import "dotenv-safe/config";
 import { ApolloServer } from "apollo-server-express";
 import connectRedis from "connect-redis";
 import cors from "cors";
@@ -22,12 +23,9 @@ import { createVoteLoader } from "./util/createVoteLoader";
 const main = async () => {
   const conn = await createConnection({
     type: "postgres",
-    database: "postgres",
-    username: "postgres",
-    password: "postgresql",
-    host: "192.168.99.100",
+    url: process.env.DATABASE_URL,
     logging: !__prod__,
-    synchronize: true,
+    synchronize: !__prod__,
     migrations: [path.join(__dirname, "./migrations/*")],
     entities: [Post, User, Vote],
   });
@@ -36,8 +34,13 @@ const main = async () => {
   const app = express();
 
   const RedisStore = connectRedis(session);
-  const redis = new Redis({ host: "192.168.99.100" });
-  app.use(cors({ origin: "http://localhost:3000", credentials: true }));
+  const redis = new Redis({
+    host: process.env.REDIS_HOST,
+    port: process.env.REDIS_PORT,
+  });
+
+  app.set("proxy", 1);
+  app.use(cors({ origin: process.env.CORS_ORIGIN, credentials: true }));
   app.use(
     session({
       name: COOKIE_NAME,
@@ -50,9 +53,10 @@ const main = async () => {
         httpOnly: true,
         sameSite: "lax", // csrf
         secure: __prod__, //only https
+        domain: __prod__ ? ".jonathanfeller.com" : undefined,
       },
       saveUninitialized: false,
-      secret: "da5b6feba4f6dbf4e6fdfa",
+      secret: process.env.SESSION_SECRET,
       resave: false,
     })
   );
@@ -76,8 +80,8 @@ const main = async () => {
     cors: false,
   });
 
-  app.listen(4000, () => {
-    console.log("Server started on localhost:4000");
+  app.listen(process.env.PORT, () => {
+    console.log("Server started on port " + process.env.PORT);
   });
 };
 
