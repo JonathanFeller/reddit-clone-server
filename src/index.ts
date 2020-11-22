@@ -39,7 +39,7 @@ const main = async () => {
     port: process.env.REDIS_PORT,
   });
 
-  app.set("proxy", 1);
+  app.set("trust proxy", 1);
   app.use(cors({ origin: process.env.CORS_ORIGIN, credentials: true }));
   app.use(
     session({
